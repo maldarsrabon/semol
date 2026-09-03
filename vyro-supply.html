@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VYRO SUPPLY — MINT TERMINAL</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --lime:#d4f71e;
+    --lime-dim:#a8c518;
+    --ink:#0b0b0c;
+    --ink-2:#161618;
+    --ink-3:#232326;
+    --cyan:#4de8f4;
+    --purple:#8b5cf6;
+    --gold:#f5a623;
+    --pink:#ff4fa3;
+    --paper:#f2f2ea;
+    --line: rgba(11,11,12,0.16);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--ink);
+    color:var(--paper);
+    font-family:'IBM Plex Mono', monospace;
+    overflow-x:hidden;
+    min-height:100vh;
+    position:relative;
+  }
+  ::selection{ background:var(--lime); color:var(--ink);}
+
+  a{ color:inherit; }
+
+  /* ---------- noise / glitch background ---------- */
+  #noise{
+    position:fixed; inset:0; pointer-events:none; z-index:2;
+    opacity:0.05; mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .glitch-bar{
+    position:fixed; left:0; width:100%; height:2px;
+    background:var(--cyan); opacity:0; z-index:3; pointer-events:none;
+    mix-blend-mode:screen;
+  }
+
+  /* ---------- BOOT / TYPING SCREEN ---------- */
+  #boot{
+    position:fixed; inset:0; background:var(--ink);
+    display:flex; align-items:center; justify-content:center;
+    z-index:50; flex-direction:column; gap:18px;
+    transition:opacity .6s ease, transform .6s ease;
+  }
+  #boot.hide{ opacity:0; transform:scale(1.03); pointer-events:none; }
+  .boot-frame{
+    border:1px solid rgba(212,247,30,0.35);
+    padding:38px 46px;
+    min-width:320px;
+    position:relative;
+    background:linear-gradient(180deg, rgba(212,247,30,0.03), transparent);
+  }
+  .boot-frame:before{
+    content:"VYRO-OS";
+    position:absolute; top:-11px; left:16px; background:var(--ink);
+    padding:0 8px; font-size:11px; letter-spacing:.18em; color:var(--lime-dim);
+  }
+  #boot-text{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:clamp(28px, 6vw, 54px);
+    letter-spacing:.02em;
+    color:var(--lime);
+    white-space:nowrap;
+  }
+  #boot-cursor{
+    display:inline-block; width:.5ch; background:var(--lime);
+    animation:blink 1s steps(1) infinite;
+  }
+  @keyframes blink{ 50%{ opacity:0; } }
+  .boot-sub{
+    font-size:12px; color:rgba(242,242,234,0.45); letter-spacing:.14em;
+    text-align:center;
+  }
+  .boot-bar{
+    width:320px; max-width:70vw; height:3px; background:rgba(242,242,234,0.1);
+    overflow:hidden; margin-top:6px;
+  }
+  .boot-bar-fill{
+    height:100%; width:0%; background:var(--lime);
+    box-shadow:0 0 12px var(--lime);
+  }
+
+  /* ---------- SITE ---------- */
+  #site{ opacity:0; transition:opacity .7s ease; }
+  #site.show{ opacity:1; }
+
+  header.top{
+    position:sticky; top:0; z-index:20;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px clamp(20px,5vw,56px);
+    background:rgba(11,11,12,0.85);
+    backdrop-filter:blur(8px);
+    border-bottom:1px solid rgba(242,242,234,0.08);
+  }
+  .brand{ display:flex; align-items:center; gap:10px; font-family:'Space Grotesk',sans-serif; font-weight:700; letter-spacing:.04em; font-size:16px;}
+  .brand .dot{ width:9px; height:9px; background:var(--lime); border-radius:1px; box-shadow:0 0 10px var(--lime); animation:pulse 2s ease-in-out infinite;}
+  @keyframes pulse{ 0%,100%{opacity:1;} 50%{opacity:.35;} }
+  nav.top-links{ display:flex; gap:22px; font-size:12px; letter-spacing:.08em; color:rgba(242,242,234,0.6);}
+  nav.top-links span{ cursor:default; }
+
+  .hero{
+    position:relative;
+    padding:min(14vh,120px) clamp(20px,6vw,80px) 60px;
+    background:var(--lime);
+    color:var(--ink);
+    overflow:hidden;
+  }
+  .hero:after{
+    content:""; position:absolute; inset:0;
+    background:repeating-linear-gradient(180deg, rgba(11,11,12,0.05) 0px, rgba(11,11,12,0.05) 1px, transparent 1px, transparent 34px);
+    pointer-events:none;
+  }
+  .hero-inner{ position:relative; z-index:2; max-width:920px; }
+  .hero-eyebrow-row{ display:flex; align-items:center; gap:12px; margin-bottom:20px;}
+  .skull-mark{ width:34px; height:34px; flex:0 0 auto;}
+  .hero-eyebrow{ font-size:12px; letter-spacing:.16em; color:rgba(11,11,12,0.6);}
+  h1.hero-title{
+    font-family:'Space Grotesk', sans-serif;
+    font-weight:700;
+    font-size:clamp(44px, 9vw, 108px);
+    line-height:0.92;
+    margin:0 0 22px;
+    letter-spacing:-.01em;
+  }
+  h1.hero-title .glitchwrap{ position:relative; display:inline-block;}
+  h1.hero-title .glitchwrap:before, h1.hero-title .glitchwrap:after{
+    content:attr(data-txt); position:absolute; left:0; top:0; width:100%; overflow:hidden;
+    opacity:0;
+  }
+  .hero-p{
+    font-size:clamp(14px,1.7vw,17px);
+    line-height:1.65;
+    max-width:58ch;
+    color:rgba(11,11,12,0.78);
+    margin:0 0 34px;
+  }
+  .hero-cta-row{ display:flex; align-items:center; gap:18px; flex-wrap:wrap; }
+
+  button, .btn{
+    font-family:'IBM Plex Mono', monospace;
+    font-weight:600;
+    font-size:13px;
+    letter-spacing:.05em;
+    cursor:pointer;
+    border:none;
+    position:relative;
+    overflow:hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .btn-primary{
+    background:var(--ink); color:var(--lime);
+    padding:16px 30px;
+    border:1px solid var(--ink);
+    transition:transform .15s ease, box-shadow .15s ease;
+  }
+  .btn-primary:hover{ transform:translateY(-2px); box-shadow:0 6px 0 rgba(11,11,12,0.25);}
+  .btn-primary:active{ transform:translateY(1px); }
+  .btn-primary:disabled{ opacity:.4; cursor:not-allowed; transform:none; box-shadow:none;}
+  .hero-note{ font-size:11.5px; color:rgba(11,11,12,0.55); letter-spacing:.04em;}
+
+  /* stat / manifest panel */
+  .manifest{
+    padding:60px clamp(20px,6vw,80px);
+    border-bottom:1px solid rgba(242,242,234,0.08);
+  }
+  .section-label{
+    font-size:11px; letter-spacing:.2em; color:var(--lime-dim); margin-bottom:22px;
+    display:flex; align-items:center; gap:10px;
+  }
+  .section-label:before{ content:""; width:20px; height:1px; background:var(--lime-dim); }
+
+  .manifest-grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(210px,1fr));
+    border:1px solid rgba(242,242,234,0.1);
+  }
+  .manifest-cell{
+    padding:22px 24px;
+    border-right:1px solid rgba(242,242,234,0.1);
+    border-bottom:1px solid rgba(242,242,234,0.1);
+  }
+  .manifest-cell .k{ font-size:10.5px; letter-spacing:.14em; color:rgba(242,242,234,0.4); margin-bottom:10px;}
+  .manifest-cell .v{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:20px; color:var(--paper);}
+  .manifest-cell .v.lime{ color:var(--lime);}
+  .manifest-cell .v.small{ font-size:14px; font-weight:500; font-family:'IBM Plex Mono',monospace; color:rgba(242,242,234,0.85); line-height:1.5;}
+
+  .phases{
+    padding:60px clamp(20px,6vw,80px);
+    border-bottom:1px solid rgba(242,242,234,0.08);
+  }
+  .phase-list{ display:flex; flex-direction:column; }
+  .phase-row{
+    display:grid; grid-template-columns:52px 1fr auto; align-items:center;
+    gap:18px; padding:20px 0; border-top:1px solid rgba(242,242,234,0.1);
+  }
+  .phase-row:last-child{ border-bottom:1px solid rgba(242,242,234,0.1); }
+  .phase-num{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:22px; color:var(--ink-3); -webkit-text-stroke:1px rgba(242,242,234,0.35); color:transparent; }
+  .phase-name{ font-family:'Space Grotesk',sans-serif; font-weight:700; font-size:18px; letter-spacing:.01em;}
+  .phase-status{ font-size:11px; letter-spacing:.1em; color:rgba(242,242,234,0.4); }
+
+  /* ---------- APPLY / TASKS ---------- */
+  .apply-section{
+    padding:70px clamp(20px,6vw,80px) 120px;
+  }
+  .apply-card{
+    max-width:640px;
+    border:1px solid rgba(242,242,234,0.14);
+    background:var(--ink-2);
+    position:relative;
+  }
+  .apply-card-head{
+    padding:26px 28px; border-bottom:1px solid rgba(242,242,234,0.1);
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .apply-card-head h3{
+    font-family:'Space Grotesk',sans-serif; margin:0; font-size:19px; font-weight:700;
+  }
+  .apply-progress{ font-size:11px; color:var(--lime); letter-spacing:.08em; }
+
+  #applyGate{ padding:38px 28px; text-align:center; }
+  #applyGate p{ color:rgba(242,242,234,0.6); font-size:13px; max-width:44ch; margin:0 auto 26px; line-height:1.6;}
+
+  .task-list{ padding:10px 0; }
+  .task{
+    padding:20px 28px;
+    border-bottom:1px solid rgba(242,242,234,0.08);
+    display:grid; grid-template-columns:34px 1fr auto; align-items:center; gap:16px;
+    opacity:0.35;
+    filter:grayscale(1);
+    pointer-events:none;
+    transition:opacity .4s ease, filter .4s ease;
+  }
+  .task.active{ opacity:1; filter:none; pointer-events:auto; }
+  .task.done{ opacity:0.55; filter:none; pointer-events:none; }
+  .task-index{
+    width:34px; height:34px; border:1px solid rgba(242,242,234,0.25);
+    display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600;
+    border-radius:2px;
+  }
+  .task.done .task-index{ background:var(--lime); color:var(--ink); border-color:var(--lime); }
+  .task-body h4{ margin:0 0 4px; font-family:'Space Grotesk',sans-serif; font-size:14.5px; font-weight:700; }
+  .task-body p{ margin:0; font-size:11.5px; color:rgba(242,242,234,0.45); }
+  .task-action{ display:flex; gap:8px; }
+
+  .btn-mini{
+    background:transparent; color:var(--paper);
+    border:1px solid rgba(242,242,234,0.28);
+    padding:9px 16px; font-size:11px; letter-spacing:.05em;
+    transition:border-color .15s ease, transform .12s ease;
+  }
+  .btn-mini:hover{ border-color:var(--lime); color:var(--lime); }
+  .btn-mini:active{ transform:scale(0.94); }
+  .btn-mini.go{ background:var(--cyan); color:var(--ink); border-color:var(--cyan); font-weight:700;}
+  .btn-mini.go:hover{ border-color:var(--cyan); color:var(--ink); filter:brightness(1.08);}
+  .btn-mini:disabled{ opacity:.35; pointer-events:none; }
+  .check-mark{ color:var(--lime); font-size:16px; }
+
+  .wallet-row{ padding:24px 28px; display:none; }
+  .wallet-row.active{ display:block; }
+  .wallet-row input{
+    width:100%; background:var(--ink); border:1px solid rgba(242,242,234,0.25);
+    color:var(--paper); padding:14px 14px; font-family:'IBM Plex Mono',monospace; font-size:13px;
+    margin-bottom:12px;
+  }
+  .wallet-row input:focus{ outline:none; border-color:var(--cyan); }
+  .wallet-hint{ font-size:11px; color:rgba(242,242,234,0.4); margin-bottom:14px; }
+
+  #successPanel{
+    display:none; padding:44px 28px; text-align:center;
+  }
+  #successPanel.active{ display:block; }
+  .success-mark{
+    width:56px; height:56px; margin:0 auto 18px; border-radius:50%;
+    border:2px solid var(--lime); display:flex; align-items:center; justify-content:center;
+    font-size:24px; color:var(--lime);
+  }
+  #successPanel h3{ font-family:'Space Grotesk',sans-serif; font-size:20px; margin:0 0 10px; }
+  #successPanel p{ font-size:12.5px; color:rgba(242,242,234,0.5); max-width:40ch; margin:0 auto; line-height:1.6;}
+  .wallet-echo{ margin-top:18px; font-size:11.5px; color:var(--cyan); word-break:break-all; }
+
+  footer{
+    padding:30px clamp(20px,6vw,80px); border-top:1px solid rgba(242,242,234,0.08);
+    display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;
+    font-size:11px; color:rgba(242,242,234,0.35); letter-spacing:.06em;
+  }
+
+  /* click burst */
+  .burst{
+    position:fixed; z-index:999; pointer-events:none;
+    width:10px; height:10px; border-radius:50%;
+    transform:translate(-50%,-50%);
+    border:1.5px solid var(--lime);
+    animation:burstAnim .55s ease-out forwards;
+  }
+  @keyframes burstAnim{
+    0%{ width:6px; height:6px; opacity:1; }
+    100%{ width:80px; height:80px; opacity:0; }
+  }
+  .spark{
+    position:fixed; z-index:999; pointer-events:none;
+    width:4px; height:4px; background:var(--lime);
+    animation:sparkAnim .5s ease-out forwards;
+  }
+  @keyframes sparkAnim{
+    to{ transform:translate(var(--dx), var(--dy)) scale(0); opacity:0; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ animation-duration:0.001ms !important; transition-duration:0.001ms !important; }
+  }
+
+  @media (max-width:640px){
+    .task{ grid-template-columns:28px 1fr; }
+    .task-action{ grid-column:1 / -1; margin-top:10px; }
+    .manifest-cell{ min-width:0; }
+  }
+</style>
+</head>
+<body>
+
+<div id="noise"></div>
+<div class="glitch-bar" id="glitchBar"></div>
+
+<!-- BOOT SCREEN -->
+<div id="boot">
+  <div class="boot-frame">
+    <div id="boot-text"><span id="boot-typed"></span><span id="boot-cursor">&nbsp;</span></div>
+  </div>
+  <div class="boot-sub">INITIALIZING MINT TERMINAL…</div>
+  <div class="boot-bar"><div class="boot-bar-fill" id="bootBarFill"></div></div>
+</div>
+
+<!-- SITE -->
+<div id="site">
+
+  <header class="top">
+    <div class="brand"><span class="dot"></span> VYRO SUPPLY</div>
+    <nav class="top-links">
+      <span>SUPPLY / 5555</span>
+      <span>CHAIN / ROBINHOOD</span>
+      <span>STATUS / TBA</span>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <div class="hero-inner">
+      <div class="hero-eyebrow-row">
+        <svg class="skull-mark" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="50" cy="50" r="48" fill="#0b0b0c"/>
+          <circle cx="50" cy="50" r="30" fill="#4de8f4"/>
+          <line x1="34" y1="42" x2="46" y2="54" stroke="#0b0b0c" stroke-width="4" stroke-linecap="round"/>
+          <line x1="46" y1="42" x2="34" y2="54" stroke="#0b0b0c" stroke-width="4" stroke-linecap="round"/>
+          <circle cx="62" cy="48" r="6" fill="#0b0b0c"/>
+        </svg>
+        <div class="hero-eyebrow">GEN-01 MASKED COLLECTIVE</div>
+      </div>
+      <h1 class="hero-title">5,555 FACES.<br>ONE SUPPLY DROP.</h1>
+      <p class="hero-p">VYRO Supply is a collection of 5,555 masked units, each built from a hand-arranged set of hoods, tanks and cracked faces. Apply below to lock a spot before phases open.</p>
+      <div class="hero-cta-row">
+        <button class="btn-primary" id="applyBtn" data-sound="primary">APPLY FOR MINT ACCESS</button>
+        <span class="hero-note">3 OG spots · Whitelist · Public — chain: Robinhood</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="manifest">
+    <div class="section-label">COLLECTION MANIFEST</div>
+    <div class="manifest-grid">
+      <div class="manifest-cell"><div class="k">SUPPLY</div><div class="v lime">5,555</div></div>
+      <div class="manifest-cell"><div class="k">MINT PRICE</div><div class="v">TBA</div></div>
+      <div class="manifest-cell"><div class="k">MINT DATE</div><div class="v">TBA</div></div>
+      <div class="manifest-cell"><div class="k">CHAIN</div><div class="v small">Robinhood</div></div>
+      <div class="manifest-cell"><div class="k">UTILITY</div><div class="v">TBA</div></div>
+      <div class="manifest-cell"><div class="k">PHASES</div><div class="v small">OG · Whitelist · Public</div></div>
+    </div>
+  </section>
+
+  <section class="phases">
+    <div class="section-label">MINT PHASES</div>
+    <div class="phase-list">
+      <div class="phase-row">
+        <div class="phase-num">01</div>
+        <div class="phase-name">OG</div>
+        <div class="phase-status">3 SPOTS · TBA</div>
+      </div>
+      <div class="phase-row">
+        <div class="phase-num">02</div>
+        <div class="phase-name">Whitelist</div>
+        <div class="phase-status">TBA</div>
+      </div>
+      <div class="phase-row">
+        <div class="phase-num">03</div>
+        <div class="phase-name">Public</div>
+        <div class="phase-status">TBA</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="apply-section" id="applySection">
+    <div class="section-label">WHITELIST APPLICATION</div>
+    <div class="apply-card">
+      <div class="apply-card-head">
+        <h3>Access Terminal</h3>
+        <div class="apply-progress" id="progressLabel">0 / 4 COMPLETE</div>
+      </div>
+
+      <div id="applyGate">
+        <p>Complete four verification steps to submit your wallet for the VYRO Supply whitelist.</p>
+        <button class="btn-primary" id="beginTasksBtn">BEGIN APPLICATION</button>
+      </div>
+
+      <div class="task-list" id="taskList" style="display:none;">
+
+        <div class="task active" id="task1">
+          <div class="task-index">1</div>
+          <div class="task-body">
+            <h4>Follow VYRO Supply</h4>
+            <p>Follow the official account to stay on-signal.</p>
+          </div>
+          <div class="task-action">
+            <button class="btn-mini go" data-task="1" data-action="open">FOLLOW</button>
+            <button class="btn-mini" data-task="1" data-action="done" disabled>DONE</button>
+          </div>
+        </div>
+
+        <div class="task" id="task2">
+          <div class="task-index">2</div>
+          <div class="task-body">
+            <h4>Repost the announcement</h4>
+            <p>Repost the mint announcement post.</p>
+          </div>
+          <div class="task-action">
+            <button class="btn-mini go" data-task="2" data-action="open">REPOST</button>
+            <button class="btn-mini" data-task="2" data-action="done" disabled>DONE</button>
+          </div>
+        </div>
+
+        <div class="task" id="task3">
+          <div class="task-index">3</div>
+          <div class="task-body">
+            <h4>Comment on the pinned post</h4>
+            <p>Drop a comment so the team can verify activity.</p>
+          </div>
+          <div class="task-action">
+            <button class="btn-mini go" data-task="3" data-action="open">COMMENT</button>
+            <button class="btn-mini" data-task="3" data-action="done" disabled>DONE</button>
+          </div>
+        </div>
+
+        <div class="task" id="task4">
+          <div class="task-index">4</div>
+          <div class="task-body">
+            <h4>Submit your wallet</h4>
+            <p>Paste the wallet address you'll mint from.</p>
+          </div>
+          <div class="task-action">
+            <button class="btn-mini go" data-task="4" data-action="reveal-wallet">ENTER</button>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="wallet-row" id="walletRow">
+        <div class="wallet-hint">WALLET ADDRESS</div>
+        <input type="text" id="walletInput" placeholder="0x...">
+        <button class="btn-primary" id="submitWalletBtn" style="width:100%;">SUBMIT WALLET</button>
+      </div>
+
+      <div id="successPanel">
+        <div class="success-mark">✓</div>
+        <h3>Wallet listed</h3>
+        <p>Your wallet has been added to the VYRO Supply whitelist queue. Watch the official channels for mint date and price updates.</p>
+        <div class="wallet-echo" id="walletEcho"></div>
+      </div>
+
+    </div>
+  </section>
+
+  <footer>
+    <span>VYRO SUPPLY © 2026</span>
+    <span>5,555 ITEMS · CHAIN: ROBINHOOD · PRICE: TBA</span>
+  </footer>
+
+</div>
+
+<script>
+/* ---------------- BOOT TYPING ---------------- */
+(function(){
+  const text = "VYRO SUPPLY";
+  const typedEl = document.getElementById('boot-typed');
+  const fill = document.getElementById('bootBarFill');
+  let i = 0;
+  function tick(){
+    if(i <= text.length){
+      typedEl.textContent = text.slice(0,i);
+      fill.style.width = Math.min(100, (i/text.length)*100) + '%';
+      i++;
+      setTimeout(tick, 90);
+    } else {
+      setTimeout(finish, 550);
+    }
+  }
+  function finish(){
+    document.getElementById('boot').classList.add('hide');
+    const site = document.getElementById('site');
+    setTimeout(()=>{ site.classList.add('show'); }, 150);
+    setTimeout(()=>{ document.getElementById('boot').style.display='none'; }, 700);
+  }
+  setTimeout(tick, 350);
+})();
+
+/* ---------------- background glitch bar ---------------- */
+(function(){
+  const bar = document.getElementById('glitchBar');
+  function fire(){
+    bar.style.top = Math.random()*100 + 'vh';
+    bar.style.opacity = 0.5;
+    bar.style.transform = 'scaleX(' + (0.4+Math.random()*0.6) + ')';
+    setTimeout(()=>{ bar.style.opacity = 0; }, 90);
+    setTimeout(fire, 2200 + Math.random()*4000);
+  }
+  setTimeout(fire, 1800);
+})();
+
+/* ---------------- click motion graphic (burst + sparks) ---------------- */
+document.addEventListener('click', function(e){
+  const target = e.target.closest('button, a');
+  if(!target) return;
+
+  const ring = document.createElement('div');
+  ring.className = 'burst';
+  ring.style.left = e.clientX + 'px';
+  ring.style.top = e.clientY + 'px';
+  document.body.appendChild(ring);
+  setTimeout(()=>ring.remove(), 600);
+
+  const colors = ['#d4f71e','#4de8f4','#8b5cf6','#f5a623'];
+  for(let k=0;k<7;k++){
+    const s = document.createElement('div');
+    s.className = 'spark';
+    const angle = Math.random()*Math.PI*2;
+    const dist = 26 + Math.random()*40;
+    s.style.setProperty('--dx', Math.cos(angle)*dist + 'px');
+    s.style.setProperty('--dy', Math.sin(angle)*dist + 'px');
+    s.style.left = e.clientX + 'px';
+    s.style.top = e.clientY + 'px';
+    s.style.background = colors[k % colors.length];
+    document.body.appendChild(s);
+    setTimeout(()=>s.remove(), 550);
+  }
+}, true);
+
+/* ---------------- apply flow ---------------- */
+(function(){
+  const applyBtn = document.getElementById('applyBtn');
+  const applySection = document.getElementById('applySection');
+  const applyGate = document.getElementById('applyGate');
+  const beginTasksBtn = document.getElementById('beginTasksBtn');
+  const taskList = document.getElementById('taskList');
+  const progressLabel = document.getElementById('progressLabel');
+  const walletRow = document.getElementById('walletRow');
+  const walletInput = document.getElementById('walletInput');
+  const submitWalletBtn = document.getElementById('submitWalletBtn');
+  const successPanel = document.getElementById('successPanel');
+  const walletEcho = document.getElementById('walletEcho');
+
+  let completed = 0;
+
+  applyBtn.addEventListener('click', ()=>{
+    applySection.scrollIntoView({behavior:'smooth', block:'start'});
+  });
+
+  beginTasksBtn.addEventListener('click', ()=>{
+    applyGate.style.display = 'none';
+    taskList.style.display = 'block';
+  });
+
+  function updateProgress(){
+    progressLabel.textContent = completed + ' / 4 COMPLETE';
+  }
+
+  function unlockNext(n){
+    const next = document.getElementById('task'+n);
+    if(next){
+      next.classList.add('active');
+    }
+  }
+
+  taskList.addEventListener('click', (e)=>{
+    const btn = e.target.closest('.btn-mini');
+    if(!btn) return;
+    const taskNum = btn.getAttribute('data-task');
+    const action = btn.getAttribute('data-action');
+    const taskEl = document.getElementById('task'+taskNum);
+
+    if(action === 'open'){
+      // simulate opening external link
+      btn.textContent = 'OPENED';
+      btn.disabled = true;
+      const doneBtn = taskEl.querySelector('[data-action="done"]');
+      if(doneBtn) doneBtn.disabled = false;
+    }
+
+    if(action === 'done'){
+      taskEl.classList.remove('active');
+      taskEl.classList.add('done');
+      taskEl.querySelector('.task-index').textContent = '✓';
+      completed++;
+      updateProgress();
+      unlockNext(parseInt(taskNum)+1);
+    }
+
+    if(action === 'reveal-wallet'){
+      taskEl.classList.remove('active');
+      taskEl.classList.add('done');
+      taskEl.querySelector('.task-index').textContent = '✓';
+      completed++;
+      updateProgress();
+      walletRow.classList.add('active');
+      setTimeout(()=>{ walletRow.scrollIntoView({behavior:'smooth', block:'center'}); }, 150);
+    }
+  });
+
+  submitWalletBtn.addEventListener('click', ()=>{
+    const val = walletInput.value.trim();
+    if(!val){
+      walletInput.style.borderColor = '#ff4fa3';
+      walletInput.placeholder = 'Enter a wallet address first';
+      return;
+    }
+    walletRow.classList.remove('active');
+    taskList.style.display = 'none';
+    successPanel.classList.add('active');
+    walletEcho.textContent = 'REGISTERED: ' + val;
+  });
+})();
+</script>
+
+</body>
+</html>
